@@ -1,0 +1,596 @@
+//Name: Brock Andreatta
+//Date: 8/2/2014
+//Desc: AGame Engine Function Definitions
+
+#include <SDL.h>
+#include <SDL_image.h>
+#include <stdio.h>
+#include "AGameEngine.h"
+
+/*
+/--------------------------------\   
+\\    AGame Engine Definitions   //
+\\----------------------------- //
+*/
+
+// Engine/Texture 
+//Screen Width / Height
+const int SCR_W = 640;
+const int SCR_H = 480;
+SDL_Renderer* renderer;
+SDL_Surface* screenSurface;
+SDL_Window* window;
+int degrees;
+SDL_RendererFlip flipType;
+TTF_Font *font;
+SDL_Color textColor = {255,0,0,255};
+
+//Arrow
+AGameTexture arrow;
+
+//Timer
+AGameTexture text;
+AGameTimer Timer;
+std::stringstream timerTxt;
+
+//Dot Entity
+AGameEntity dot;
+AGameTexture dotTexture;
+
+//FPS
+AGameTimer fpsTimer;
+AGameTexture fpsTexture;
+AGameTexture frameTexture;
+std::stringstream fpsTxt;
+std::stringstream frameTxt;
+int frameCounter = 0;
+float avgFPS;
+
+Uint32 startTime = 0;
+
+//Sound
+Mix_Music *music = NULL;
+Mix_Chunk *high = NULL;
+Mix_Chunk *low = NULL;
+
+//Animations
+AGameTexture spriteSheet;
+const int WALKING_ANIMATION_FRAMES = 4;
+SDL_Rect gSpriteClips[WALKING_ANIMATION_FRAMES];
+SDL_Rect* currentClip = NULL;
+int frame = 0;
+
+
+bool AGame::init()
+{
+
+	bool success = true;
+
+	if(SDL_Init(SDL_INIT_EVERYTHING) == -1)
+	{
+		printf("SDL failed to initialize. SDL Error: %s\n",SDL_GetError());
+		success = false;
+	}
+	else
+	{
+
+		if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"1"))
+		{
+			printf("WARNING: Linear texture filtering is not enabled.\n");
+		}
+
+		window = SDL_CreateWindow("A Game",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,SCR_W,SCR_H,SDL_WINDOW_SHOWN);
+		if(window == NULL)
+		{
+			printf("Failed to load window. SDL Error: %s/n",SDL_GetError());
+			success = false;
+		}
+		else
+		{
+			renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+			if(renderer == NULL)
+			{
+				printf("Renderer could not be created. SDL_Error: %s\n",SDL_GetError());
+				success = false;
+			}
+			else
+			{
+				SDL_SetRenderDrawColor(renderer,0xFF,0xFF,0xFF,0xFF);
+
+				int imgFlags = IMG_INIT_PNG;
+
+				if(!IMG_Init(imgFlags) &imgFlags)
+				{
+					printf("Failed to initialize IMG_Init..IMG Error: %s\n",IMG_GetError());
+					success = false;
+				}
+
+				if(TTF_Init() == -1)
+				{
+					printf("True Type Fonts failed to initialize. %s/n");
+					success = false;
+				}
+
+				if(Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048) < 0)
+				{
+					printf("Mixer failed to initialize. %s/n",Mix_GetError());
+					success = false;
+				}
+
+			}
+
+
+		}
+	}
+
+
+	return success;
+}
+
+bool AGame::loadMedia()
+{
+	bool success = true;
+
+	if(!spriteSheet.loadFromFile("stickspritesheet.png"))
+	{
+		printf("Failed to load sprite sheet. SDL Error: %s\n",IMG_GetError());
+		success = false;
+	}
+	else
+	{
+		gSpriteClips[ 0 ].x =   0;
+		gSpriteClips[ 0 ].y =   0;
+		gSpriteClips[ 0 ].w =  64;
+		gSpriteClips[ 0 ].h = 205;
+
+		gSpriteClips[ 1 ].x =  64;
+		gSpriteClips[ 1 ].y =   0;
+		gSpriteClips[ 1 ].w =  64;
+		gSpriteClips[ 1 ].h = 205;
+
+		gSpriteClips[ 2 ].x = 128;
+		gSpriteClips[ 2 ].y =   0;
+		gSpriteClips[ 2 ].w =  64;
+		gSpriteClips[ 2 ].h = 205;
+
+		gSpriteClips[ 3 ].x = 196;
+		gSpriteClips[ 3 ].y =   0;
+		gSpriteClips[ 3 ].w =  64;
+		gSpriteClips[ 3 ].h = 205;
+	}
+
+	if(!arrow.loadFromFile("arrow.png"))
+	{
+		printf("Failed to load arrow. IMG Error: %s\n",IMG_GetError());
+		success = false;
+	}
+
+	font = TTF_OpenFont("lazy.ttf",26);
+
+	if(font == NULL)
+	{
+		printf("Font failed to load. TTF Error: %s\n",TTF_GetError());
+		success = false;
+	}
+	else
+	{
+
+		if(!text.loadFromRenderedText("What the fuck is going on? LOL", textColor))
+		{
+			printf("Failed to render text. TTF Error: %s\n",TTF_GetError());
+			success = false;
+		}
+	}
+
+	music = Mix_LoadMUS("beat.wav");
+
+	if(music == NULL)
+	{
+		printf("Failed to load music. Mixer Error: %s\n",Mix_GetError());
+		success = false;
+	}
+	
+	high = Mix_LoadWAV("high.wav");
+
+	if(high == NULL)
+	{
+		printf("Failed to load high SFX. Mixer Error: %s\n",Mix_GetError());
+		success = false;
+	}
+
+	low = Mix_LoadWAV("low.wav");
+
+	if(high == NULL)
+	{
+		printf("Failed to load low SFX. Mixer Error: %s\n",Mix_GetError());
+		success = false;
+	}
+
+	if(!dotTexture.loadFromFile("dot.bmp"))
+	{
+		printf("Failed to load load dot. IMG Error: %s\n",IMG_GetError());
+		success = false;
+	}
+
+	return success;
+}
+
+void AGame::close()
+{
+	spriteSheet.freeUp();
+	arrow.freeUp();
+	SDL_DestroyWindow(window);
+	window = NULL;
+	SDL_DestroyRenderer(renderer);
+	renderer = NULL;
+
+	Mix_Quit();
+	IMG_Quit();
+	SDL_Quit();
+
+}
+
+bool AGame::loadGame()
+{
+	bool success = true;
+
+	if(!init())
+	{
+		printf("Init function failed. SDL_Error: %s\n",SDL_GetError());
+		success = false;
+	}
+	else
+	{
+		if(!loadMedia())
+		{
+
+			printf("Media failed to load. SDL Error: %s\n",SDL_GetError());
+			success = false;
+		}
+	}
+
+
+	return success;
+}
+
+bool AGame::gameLoop()
+{
+	Uint8 r = 255,g = 255,b = 255,a = 255;
+	fpsTimer.start();
+
+	while(gameIsRunning == true)
+	{
+		//Event Loop
+		while( SDL_PollEvent(&eventLoop) != 0)
+		{
+
+			dot.handleEvents(eventLoop);
+
+			if(eventLoop.type == SDL_QUIT)
+			{
+				gameIsRunning = false;
+			}
+
+			if(eventLoop.type == SDL_KEYDOWN)
+			{
+				switch(eventLoop.key.keysym.sym)
+				{
+				case SDLK_UP:
+					degrees += 8;
+					a += 8;
+					g += 8;
+					b += 8;
+					a += 8;
+					break;
+				case SDLK_DOWN:
+					degrees -=8;
+					r -= 8;
+					g -= 8;
+					b -= 8;
+					a -= 8;
+					break;
+				case SDLK_LEFT:
+					flipType = SDL_FLIP_HORIZONTAL;
+					break;
+				case SDLK_RIGHT:
+					flipType = SDL_FLIP_VERTICAL;
+					break;
+				case SDLK_r:
+					flipType = SDL_FLIP_NONE;
+					break;
+				case SDLK_0:
+					Mix_PlayMusic(music,-1);
+					break;
+				case SDLK_1:
+					Mix_PlayChannel(-1,high,0);
+					break;
+				case SDLK_2:
+					Mix_PlayChannel(-1,low,0);
+					break;
+				case SDLK_RETURN:
+					if(Timer.isStarted())
+					{
+						Timer.stop();
+					}
+					else
+					{
+						Timer.start();
+					}
+					break;
+				case SDLK_p:
+					if(Timer.isPaused())
+					{
+						Timer.unpause();
+					}
+					else
+					{
+						Timer.pause();
+					}
+					break;
+				}
+
+			}
+		}
+
+		//Main Loop
+
+		SDL_RenderClear(renderer);
+
+		//Animation
+		currentClip = &gSpriteClips [frame / 9 ];
+		spriteSheet.render( (SCR_W - currentClip->w) / 2, (SCR_H - currentClip->h) / 2,currentClip, NULL, NULL, SDL_FLIP_NONE);
+		//Arrow (Color Modulation & Alpha Setting)
+		arrow.setColor(r,g,b);
+		arrow.setAlpha(a);
+		arrow.render( 0, 0, NULL, degrees,NULL,flipType);
+
+		//Timer Text
+		timerTxt.str("");
+		timerTxt << "Milliseconds since start time: " << (Timer.getTicks() / 1000.f );
+		text.loadFromRenderedText(timerTxt.str().c_str(),textColor);
+		text.render(150,450,NULL,NULL,NULL,SDL_FLIP_NONE);
+
+		//FPS
+		avgFPS = frameCounter / (fpsTimer.getTicks() / 1000.f);
+		if( avgFPS > 2000000 )
+		{
+			avgFPS = 0;
+		}
+
+		fpsTxt.str("");
+		fpsTxt << "Frames Per Second: " << avgFPS ;
+		fpsTexture.loadFromRenderedText(fpsTxt.str().c_str(),textColor);
+		fpsTexture.render(200,400,NULL,NULL,NULL,SDL_FLIP_NONE);
+		frameTxt.str("");
+		frameTxt << "Number of Frames: " << frameCounter;
+		frameTexture.loadFromRenderedText(frameTxt.str().c_str(),textColor);
+		frameTexture.render(200,420,NULL,NULL,NULL,SDL_FLIP_NONE);
+		
+		//Dot Entity
+		dot.move();
+		dot.render();
+
+		SDL_RenderPresent(renderer);
+		frame++;
+		frameCounter++;
+
+		if((frame / 9) >= WALKING_ANIMATION_FRAMES)
+		{
+			frame = 0;
+		}
+
+	}
+
+	return gameIsRunning;
+}
+
+/*
+/-----------------------------\   
+\\ AGameTexture Definitions  //
+\\------------------------ //
+*/
+
+
+AGameTexture::AGameTexture()
+{
+	Texture = NULL;
+	a = 255;
+	width = 0;
+	height = 0;
+}
+
+AGameTexture::~AGameTexture()
+{
+	delete [] gSpriteClips;
+	freeUp();
+}
+
+void AGameTexture::freeUp()
+{
+	if(Texture != NULL)
+	{
+		SDL_DestroyTexture(Texture);
+		Texture = NULL;
+		width = 0;
+		height = 0;
+	}
+}
+
+bool AGameTexture::loadFromFile(std:: string path)
+{
+	freeUp();
+
+	SDL_Texture* newTexture = NULL;
+
+	SDL_Surface *loadedImage = IMG_Load(path.c_str());
+	if(loadedImage == NULL)
+	{
+		printf("Could not load image. SDL_Error: %s",SDL_GetError());
+	}
+	else
+	{
+		SDL_SetColorKey(loadedImage,SDL_TRUE,SDL_MapRGB(loadedImage->format,0,0xFF,0xFF));
+
+		newTexture = SDL_CreateTextureFromSurface(renderer,loadedImage);
+		if(newTexture == NULL)
+		{
+			printf("Could not create texture from surface. SDL_Error: %s\n",SDL_GetError());
+		}
+		else
+		{
+			width = loadedImage->w;
+			height = loadedImage->h;
+		}
+	
+
+	SDL_FreeSurface(loadedImage);
+
+	Texture = newTexture;
+
+	return Texture != NULL; 
+
+	}
+
+}
+
+void AGameTexture::render(int x, int y,SDL_Rect* clip,int angle,SDL_Point* center,SDL_RendererFlip flip)
+{
+	SDL_Rect dimensions = {x,y,width,height};
+
+	if(clip != NULL)
+	{
+		dimensions.w = clip->w;
+		dimensions.h = clip->h;
+	}
+
+	SDL_RenderCopyEx(renderer,Texture,clip,&dimensions,angle,center,flip);
+}
+
+void AGameTexture::setColor(Uint8 r, Uint8 g, Uint8 b)
+{
+	SDL_SetTextureColorMod(Texture,r,g,b);
+
+}
+
+void AGameTexture::setBlendMode(SDL_BlendMode blend)
+{
+	SDL_SetTextureBlendMode(Texture,blend);
+}
+
+void AGameTexture::setAlpha(Uint8 alpha)
+{
+	SDL_SetTextureAlphaMod(Texture,a);
+}
+
+bool AGameTexture::loadFromRenderedText(std::string message, SDL_Color color)
+{
+	freeUp();
+
+	SDL_Surface* textSurface = TTF_RenderText_Solid(font,message.c_str(),color);;
+
+	if(textSurface == NULL)
+	{
+		printf("Failed to render text surface. TTF Error: %s",TTF_GetError());
+	}
+	else
+	{
+		Texture = SDL_CreateTextureFromSurface(renderer,textSurface);
+
+		if(Texture == NULL)
+		{
+			printf("Failed to create texture from surface SDL Error: %s",SDL_GetError());
+		}
+		else
+		{
+			width = textSurface->w;
+			height = textSurface->h;
+		}
+	}
+
+	SDL_FreeSurface(textSurface);
+
+	return Texture != NULL;
+
+}
+
+
+/*
+/-----------------------------\   
+\\  AGameEntity Definitions //
+\\------------------------ //
+*/
+
+
+AGameEntity::AGameEntity()
+{
+	x = 0;
+	y = 0;
+	xVel = 0;
+	yVel = 0;
+
+}
+
+void AGameEntity::handleEvents(SDL_Event& e)
+{
+	if( e.type == SDL_KEYDOWN && e.key.repeat == 0)
+	{
+		switch(e.key.keysym.sym)
+		{
+		case SDLK_UP:
+			yVel -= ENTITY_MAXVEL;
+			break;
+		case SDLK_DOWN:
+			yVel += ENTITY_MAXVEL;
+			break;
+		case SDLK_LEFT:
+			xVel -= ENTITY_MAXVEL;
+			break;
+		case SDLK_RIGHT:
+			xVel += ENTITY_MAXVEL;
+			break;
+		}	
+	}
+
+	if(e.type == SDL_KEYUP && e.key.repeat == 0)
+	{
+		switch(e.key.keysym.sym)
+		{
+		case SDLK_UP:
+			yVel += ENTITY_MAXVEL;
+			break;
+		case SDLK_DOWN:
+			yVel -= ENTITY_MAXVEL;
+			break;
+		case SDLK_LEFT:
+			xVel += ENTITY_MAXVEL;
+			break;
+		case SDLK_RIGHT:
+			xVel -= ENTITY_MAXVEL;
+			break;
+		}	
+
+	}
+}
+
+void AGameEntity::move()
+{
+	x += xVel;
+
+	if( (x < 0) || (x + ENTITY_WIDTH) > SCR_W) 
+	{
+		x -= xVel;
+	}
+
+	y += yVel;
+
+	if( (y < 0) || (y + ENTITY_HEIGHT) > SCR_H)
+	{
+		y -=yVel;
+	}
+
+}
+
+void AGameEntity::render()
+{
+	dotTexture.render(x,y,NULL,NULL,NULL,SDL_FLIP_NONE);
+}
