@@ -14,24 +14,20 @@ public:
 	//Initialize the subsystems
 	bool initGame();
 	//Load the media
-	void loadMedia();
-	//Load/Create a Texture
-	SDL_Texture* createTexture(string path);
-	//Apply a Texture to Game world.
-	void applyTexture();
+	SDL_Renderer* getRenderer() { return GameRenderer; }
 
-protected:
+private:
 	//Screen Dimensions
 	int SCR_H;
 	int SCR_W;
-	//Game Window
-	SDL_Window* GameWindow;
-	//Game Renderer
-	SDL_Renderer* GameRenderer;
 	//Quit flag
 	bool GameIsOver;
 	//Main event loop
 	SDL_Event eventLoop;
+	//Game Window
+	SDL_Window* GameWindow;
+	//Game Renderer
+	SDL_Renderer* GameRenderer;
 
 
 };

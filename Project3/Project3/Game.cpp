@@ -1,17 +1,39 @@
 //Game Implementation File
 
 #include "Game.h"
+#include "Texture.h"
+#include "Sound.h"
+#include "Text.h"
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_ttf.h>
+#include <SDL_mixer.h>
 #include <stdio.h>
 
 //Game Constructor initializing game and entering game loop/event loop
 Game::Game()
 {
+	Sound musicLoop;
+	Text myText;
+
 	//Initialize game subsystems
-	initGame();
-	//Load Media
-	loadMedia();
+	if(initGame() == false)
+	{
+		printf("Game has failed to initialize. SDL Error: %s",SDL_GetError());
+		exit(1);
+	}
+	//Load Assets
+	else
+	{
+		Texture background("bg.png","Bg",getRenderer());
+		background.apply(0,0,getRenderer());
+		musicLoop.loadSFX("mus.wav","");
+		myText.load("Ass and titties all day.",getRenderer());
+		myText.render(100,100,getRenderer());
+		SDL_RenderPresent(getRenderer());
+		
+	}
+
 
 	//Enter the game loop..
 	while(GameIsOver == false)
@@ -19,6 +41,15 @@ Game::Game()
 		//Event Loop
 		while(SDL_PollEvent(&eventLoop) != 0)
 		{
+
+			switch(eventLoop.key.keysym.sym)
+			{
+			case SDLK_0:
+				musicLoop.playSFX(1);
+				break;
+
+			}
+
 			if(eventLoop.type == SDL_QUIT)
 			{
 				GameIsOver = true;
@@ -33,8 +64,8 @@ Game::Game()
 bool Game::initGame()
 {
 	//Set Screen Values
-	SCR_H = 640;
-	SCR_W = 480;
+	SCR_H = 1280;
+	SCR_W = 960;
 
 	//Success flag to determine if all game subsystems were initialized correctly.
 	bool success = true;
@@ -63,6 +94,24 @@ bool Game::initGame()
 				success = false;
 				printf("Game renderer has failed to initialize. SDL_Error: %s",SDL_GetError());
 			}
+			else
+			{
+				if(Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048) < 0 )
+				{
+					printf("Mixer failed to initialize. SDL_Error: %s",Mix_GetError());
+					success = false;
+				}
+				else
+				{
+
+					if(TTF_Init() == -1)
+					{
+						printf("TTF failed to initialize. SDL_Error: %s",TTF_GetError());
+					}
+				}
+				
+
+			}
 
 		}
 	}
@@ -75,29 +124,4 @@ bool Game::initGame()
 }
 
 
-//Load media
 
-void Game::loadMedia()
-{
-	SDL_Texture* myTexture;
-
-	myTexture = createTexture("bg.png");
-
-}
-
-//Create texures
-
-SDL_Texture* Game::createTexture(string path)
-{
-
-	SDL_Texture* aTexture = NULL;
-	SDL_Surface* loadedSurface = IMG_Load(path.c_str());
-
-	aTexture = SDL_CreateTextureFromSurface(GameRenderer,loadedSurface);
-	SDL_FreeSurface(loadedSurface);
-
-
-	return aTexture;
-
-
-}
