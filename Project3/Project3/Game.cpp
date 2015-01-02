@@ -4,11 +4,14 @@
 #include "Texture.h"
 #include "Sound.h"
 #include "Text.h"
+#include "Timer.h"
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
 #include <stdio.h>
+#include <sstream>
+#include <iostream>
 
 //Game Constructor initializing game and entering game loop/event loop
 Game::Game()
@@ -16,24 +19,21 @@ Game::Game()
 	Sound musicLoop;
 	Text myText;
 
+	//Timer shit
+	std::stringstream timeText;
+	Timer fpsTimer;
+	Text textForTimer;
+
 	//Initialize game subsystems
 	if(initGame() == false)
 	{
 		printf("Game has failed to initialize. SDL Error: %s",SDL_GetError());
 		exit(1);
 	}
-	//Load Assets
-	else
-	{
-		Texture background("bg.png","Bg",getRenderer());
-		background.apply(0,0,getRenderer());
-		musicLoop.loadSFX("mus.wav","");
-		myText.load("Ass and titties all day.",getRenderer());
-		myText.render(100,100,getRenderer());
-		SDL_RenderPresent(getRenderer());
-		
-	}
 
+	//Load Assets
+	Texture background("bg.png","Bg",getRenderer());
+	musicLoop.loadSFX("mus.wav","");
 
 	//Enter the game loop..
 	while(GameIsOver == false)
@@ -42,12 +42,24 @@ Game::Game()
 		while(SDL_PollEvent(&eventLoop) != 0)
 		{
 
-			switch(eventLoop.key.keysym.sym)
+			if(eventLoop.type == SDL_KEYDOWN)
 			{
-			case SDLK_0:
-				musicLoop.playSFX(1);
-				break;
-
+				if(eventLoop.key.keysym.sym == SDLK_s)
+				{
+					if(fpsTimer.isStarted())
+						fpsTimer.stop();
+					else
+						fpsTimer.start();
+				}
+				else if(eventLoop.key.keysym.sym == SDLK_p)
+				{
+					if(fpsTimer.isPaused())
+						fpsTimer.unpause();
+					else
+						fpsTimer.pause();
+				}
+				else if(eventLoop.key.keysym.sym == SDLK_0)
+					musicLoop.playSFX(1);
 			}
 
 			if(eventLoop.type == SDL_QUIT)
@@ -56,6 +68,20 @@ Game::Game()
 			}
 		}
 
+		//Frames
+		timeText.str("");
+		timeText << "Timer: " << ( fpsTimer.getTicks() / 1000 );
+		std::cout << timeText.str() << std::endl;
+		textForTimer.load(timeText.str().c_str(),getRenderer());
+		myText.load("Here we gooooooooo!",getRenderer());
+
+		SDL_SetRenderDrawColor(getRenderer(),0xFF,0xFF,0xFF,0xFF);
+		SDL_RenderClear(getRenderer());
+
+		background.apply(0,0,getRenderer());
+		myText.render(100,100,getRenderer());
+		textForTimer.render(100,200,getRenderer());
+		SDL_RenderPresent(getRenderer());
 	}
 
 }
@@ -110,7 +136,6 @@ bool Game::initGame()
 					}
 				}
 				
-
 			}
 
 		}

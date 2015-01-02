@@ -11,7 +11,7 @@ Text::Text()
 void Text::load(std::string message,SDL_Renderer* renderer)
 {
 	SDL_Color txtColor = {255,0,0};
-	TTF_Font* font = TTF_OpenFont("night.ttf",48);
+	TTF_Font* font = TTF_OpenFont("smb.ttf",48);
 	SDL_Surface* textSurface = TTF_RenderText_Solid(font,message.c_str(),txtColor);
 	if(textSurface == NULL)
 	{
