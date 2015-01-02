@@ -13,6 +13,8 @@ public:
 	Game();
 	//Initialize the subsystems
 	bool initGame();
+	//Free Memory
+	void close();
 	//Load the media
 	SDL_Renderer* getRenderer() { return GameRenderer; }
 

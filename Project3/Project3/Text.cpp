@@ -7,11 +7,17 @@ Text::Text()
 	renderedText = NULL;
 }
 
-
-void Text::load(std::string message,SDL_Renderer* renderer)
+Text::~Text()
 {
-	SDL_Color txtColor = {255,0,0};
-	TTF_Font* font = TTF_OpenFont("smb.ttf",48);
+	freeUp();
+}
+
+
+void Text::load(std::string message,SDL_Renderer* renderer, SDL_Color txtColor,TTF_Font* font)
+{
+
+	freeUp(); //free memory of any previously loaded textures.
+
 	SDL_Surface* textSurface = TTF_RenderText_Solid(font,message.c_str(),txtColor);
 	if(textSurface == NULL)
 	{
@@ -43,4 +49,16 @@ void Text::render(int x, int y, SDL_Renderer* renderer)
 		printf("Failed to render text. SDL_Error: %s .",SDL_GetError());
 	}
 
+}
+
+
+void Text::freeUp()
+{
+	if(renderedText != NULL)
+	{
+		SDL_DestroyTexture(renderedText);
+		renderedText = NULL;
+		width = 0;
+		height = 0;
+	}
 }

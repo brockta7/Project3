@@ -16,13 +16,21 @@
 //Game Constructor initializing game and entering game loop/event loop
 Game::Game()
 {
+	//Game Variables
 	Sound musicLoop;
 	Text myText;
+	Texture background;
+	TTF_Font* font;
 
 	//Timer shit
 	std::stringstream timeText;
+	std::stringstream fpsText;
+	Timer regTimer;
 	Timer fpsTimer;
 	Text textForTimer;
+	Text textForFPSTimer;
+	int frames = 0; //for fpsTimer
+	SDL_Color txtColor = {255,0,0};
 
 	//Initialize game subsystems
 	if(initGame() == false)
@@ -30,11 +38,20 @@ Game::Game()
 		printf("Game has failed to initialize. SDL Error: %s",SDL_GetError());
 		exit(1);
 	}
-
 	//Load Assets
-	Texture background("bg.png","Bg",getRenderer());
-	musicLoop.loadSFX("mus.wav","");
+	else
+	{
+		musicLoop.loadSFX("mus.wav","");
+		font = TTF_OpenFont("smb.ttf",48);
+		background.load("bg.png",GameRenderer,"Background");
+		background.apply(0,0,GameRenderer);
 
+		SDL_RenderPresent(GameRenderer);
+		
+	}
+
+	//Start Frames Per Second Timer
+	fpsTimer.start();
 	//Enter the game loop..
 	while(GameIsOver == false)
 	{
@@ -46,17 +63,17 @@ Game::Game()
 			{
 				if(eventLoop.key.keysym.sym == SDLK_s)
 				{
-					if(fpsTimer.isStarted())
-						fpsTimer.stop();
+					if(regTimer.isStarted())
+						regTimer.stop();
 					else
-						fpsTimer.start();
+						regTimer.start();
 				}
 				else if(eventLoop.key.keysym.sym == SDLK_p)
 				{
-					if(fpsTimer.isPaused())
-						fpsTimer.unpause();
+					if(regTimer.isPaused())
+						regTimer.unpause();
 					else
-						fpsTimer.pause();
+						regTimer.pause();
 				}
 				else if(eventLoop.key.keysym.sym == SDLK_0)
 					musicLoop.playSFX(1);
@@ -68,20 +85,32 @@ Game::Game()
 			}
 		}
 
-		//Frames
+
+		//Calculate and correct FPS
+		float avgFPS = frames / (fpsTimer.getTicks() / 1000.f);
+
+		if(avgFPS > 2000000)
+			avgFPS = 0;
+
 		timeText.str("");
-		timeText << "Timer: " << ( fpsTimer.getTicks() / 1000 );
-		std::cout << timeText.str() << std::endl;
-		textForTimer.load(timeText.str().c_str(),getRenderer());
-		myText.load("Here we gooooooooo!",getRenderer());
+		timeText << "Timer: " << ( regTimer.getTicks() / 1000.f );
+		fpsText.str("");
+		fpsText << "FPS: " << avgFPS;
 
-		SDL_SetRenderDrawColor(getRenderer(),0xFF,0xFF,0xFF,0xFF);
-		SDL_RenderClear(getRenderer());
+		
+		textForTimer.load(timeText.str().c_str(),GameRenderer,txtColor,font);
+		textForFPSTimer.load(fpsText.str().c_str(),GameRenderer,txtColor,font);
+		myText.load("Here we gooooooooo!",GameRenderer,txtColor,font);
 
-		background.apply(0,0,getRenderer());
-		myText.render(100,100,getRenderer());
-		textForTimer.render(100,200,getRenderer());
-		SDL_RenderPresent(getRenderer());
+		SDL_RenderClear(GameRenderer);
+
+		//Render
+		background.apply(0,0,GameRenderer);
+		myText.render(100,100,GameRenderer);
+		textForTimer.render(100,200,GameRenderer);
+		textForFPSTimer.render(100,300,GameRenderer);
+		SDL_RenderPresent(GameRenderer);
+		frames++;
 	}
 
 }
@@ -122,20 +151,28 @@ bool Game::initGame()
 			}
 			else
 			{
+				SDL_SetRenderDrawColor(GameRenderer,0xFF,0xFF,0xFF,0xFF);
+
 				if(Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048) < 0 )
 				{
 					printf("Mixer failed to initialize. SDL_Error: %s",Mix_GetError());
 					success = false;
 				}
-				else
-				{
 
-					if(TTF_Init() == -1)
-					{
-						printf("TTF failed to initialize. SDL_Error: %s",TTF_GetError());
-					}
+				if(TTF_Init() == -1)
+				{
+					printf("TTF failed to initialize. SDL_Error: %s",TTF_GetError());
+					success = false;
 				}
 				
+				int imgFlags = IMG_INIT_PNG;
+				if(!(IMG_Init(imgFlags) & imgFlags) )
+				{
+					printf("SDL_image could not initalize. SDL_Image Error: %s",IMG_GetError());
+					success = false;
+				}
+
+
 			}
 
 		}

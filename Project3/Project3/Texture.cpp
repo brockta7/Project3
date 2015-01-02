@@ -6,16 +6,22 @@
 
 Texture::Texture()
 {
-	//empty ctor
+	texture = NULL;
+	width = 0;
+	height = 0;
+	name = "";
 }
 
-Texture::Texture(std::string path, std::string name,SDL_Renderer* renderer)
+Texture::~Texture()
 {
-	load(path,renderer,name);
+	freeUp();
 }
+
 
 bool Texture::load(std::string path,SDL_Renderer* renderer,std::string texName)
 {
+	freeUp();
+
 	bool success = true;
 	name = texName;
 
@@ -32,12 +38,10 @@ bool Texture::load(std::string path,SDL_Renderer* renderer,std::string texName)
 	{
 		width = tempSurface->w;
 		height = tempSurface->h;
-
 		texture = SDL_CreateTextureFromSurface(renderer,tempSurface);
-		SDL_FreeSurface(tempSurface);
-
 	}
 
+	SDL_FreeSurface(tempSurface);
 
 	return success;
 
@@ -56,4 +60,18 @@ bool Texture::apply(int x, int y,SDL_Renderer* renderer)
 
 
 	return success;
+}
+
+void Texture::freeUp()
+{
+	if(texture != NULL)
+	{
+		SDL_DestroyTexture(texture);
+		texture = NULL;
+		width = 0;
+		height = 0;
+	}
+
+
+
 }

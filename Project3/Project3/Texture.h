@@ -8,9 +8,10 @@ class Texture
 {
 public:
 	Texture();
-	Texture(std::string path, std::string name,SDL_Renderer* renderer);
+	~Texture();
 	bool load(std::string path,SDL_Renderer* renderer, std::string texName);
 	bool apply(int x, int y,SDL_Renderer* renderer);
+	void freeUp(); // free up previously used texture
 private:
 	std::string name;
 	int width;
