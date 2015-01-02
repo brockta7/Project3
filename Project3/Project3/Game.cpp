@@ -1,14 +1,20 @@
 //Game Implementation File
 
+//My game libraries
 #include "Game.h"
 #include "Texture.h"
 #include "Sound.h"
 #include "Text.h"
 #include "Timer.h"
+#include "Entity.h"
+
+//SDL libraries
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
+
+//Misc libraries
 #include <stdio.h>
 #include <sstream>
 #include <iostream>
@@ -20,6 +26,7 @@ Game::Game()
 	Sound musicLoop;
 	Text myText;
 	Texture background;
+	Entity mario;
 	TTF_Font* font;
 
 	//Timer shit
@@ -43,11 +50,8 @@ Game::Game()
 	{
 		musicLoop.loadSFX("mus.wav","");
 		font = TTF_OpenFont("smb.ttf",48);
-		background.load("bg.png",GameRenderer,"Background");
-		background.apply(0,0,GameRenderer);
-
-		SDL_RenderPresent(GameRenderer);
-		
+		background.load("bg.png",GameRenderer,"Background Texture");
+		mario.load("mario.png",GameRenderer,"Mario Entity Texture");
 	}
 
 	//Start Frames Per Second Timer
@@ -79,6 +83,9 @@ Game::Game()
 					musicLoop.playSFX(1);
 			}
 
+			mario.handleEvent(eventLoop);
+
+
 			if(eventLoop.type == SDL_QUIT)
 			{
 				GameIsOver = true;
@@ -92,11 +99,14 @@ Game::Game()
 		if(avgFPS > 2000000)
 			avgFPS = 0;
 
+		//Text for Timer/FPS Timer
 		timeText.str("");
 		timeText << "Timer: " << ( regTimer.getTicks() / 1000.f );
 		fpsText.str("");
 		fpsText << "FPS: " << avgFPS;
 
+		//Mario Entity
+		mario.move();
 		
 		textForTimer.load(timeText.str().c_str(),GameRenderer,txtColor,font);
 		textForFPSTimer.load(fpsText.str().c_str(),GameRenderer,txtColor,font);
@@ -109,6 +119,7 @@ Game::Game()
 		myText.render(100,100,GameRenderer);
 		textForTimer.render(100,200,GameRenderer);
 		textForFPSTimer.render(100,300,GameRenderer);
+		mario.render(GameRenderer);
 		SDL_RenderPresent(GameRenderer);
 		frames++;
 	}
@@ -119,8 +130,8 @@ Game::Game()
 bool Game::initGame()
 {
 	//Set Screen Values
-	SCR_H = 1280;
-	SCR_W = 960;
+	SCR_W = 1280;
+	SCR_H = 960;
 
 	//Success flag to determine if all game subsystems were initialized correctly.
 	bool success = true;
@@ -133,7 +144,7 @@ bool Game::initGame()
 	}
 	else
 	{
-		GameWindow = SDL_CreateWindow("Project3",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,SCR_H,SCR_W,SDL_WINDOW_SHOWN);
+		GameWindow = SDL_CreateWindow("Project3",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,SCR_W,SCR_H,SDL_WINDOW_SHOWN);
 
 		if(GameWindow == NULL)
 		{
@@ -142,7 +153,7 @@ bool Game::initGame()
 		}
 		else
 		{
-			GameRenderer = SDL_CreateRenderer(GameWindow,-1,SDL_RENDERER_ACCELERATED);
+			GameRenderer = SDL_CreateRenderer(GameWindow,-1,SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 			
 			if(GameRenderer == NULL)
 			{
